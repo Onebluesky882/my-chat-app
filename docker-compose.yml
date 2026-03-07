@@ -1,0 +1,28 @@
+services:
+  scylla-node1:
+    image: scylladb/scylla:latest
+    container_name: scylla-node1
+    command: >
+      --smp 1
+      --memory 2000M
+      --overprovisioned 1
+      --seeds=scylla-node1
+    ports:
+      - "9042:9042"
+    networks:
+      - scylla-net
+
+  scylla-node2:
+    image: scylladb/scylla:latest
+    container_name: scylla-node2
+    command: >
+      --smp 1
+      --memory 2000M
+      --overprovisioned 1
+      --seeds=scylla-node1
+    networks:
+      - scylla-net
+
+networks:
+  scylla-net:
+    driver: bridge
