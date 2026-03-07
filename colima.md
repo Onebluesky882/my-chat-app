@@ -26,3 +26,8 @@ DESCRIBE KEYSPACE chat;
 
 // ตรวจสอบ  ข้างนอก 
 docker exec -it scylla-node1 nodetool status
+
+
+
+## connect db
+docker exec -it scylla-node1 cqlsh

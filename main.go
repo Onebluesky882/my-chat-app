@@ -1,8 +1,20 @@
 package main
 
-import "github.com/Onebluesky882/my-chat-app/internal/db"
+import (
+	"fmt"
+
+	"github.com/Onebluesky882/my-chat-app/internal/db"
+)
 
 func main() {
-	db.ConnectScylla()
 
+	session, err := db.ConnectScylla()
+	if err != nil {
+		fmt.Println("DB connection error:", err)
+		return
+	}
+
+	defer session.Close()
+
+	fmt.Println("Application started 🚀")
 }
