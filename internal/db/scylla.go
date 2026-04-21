@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -16,11 +17,9 @@ func ConnectScylla() (*gocql.Session, error) {
 
 	hosts := os.Getenv("SCYLLA_HOSTS")
 	keyspace := os.Getenv("SCYLLA_KEYSPACE")
-	dc := os.Getenv("SCYLLA_DATACENTER")
 
 	fmt.Println("hosts:", hosts)
 	fmt.Println("keyspace:", keyspace)
-	fmt.Println("dc:", dc)
 
 	if hosts == "" {
 		return nil, fmt.Errorf("SCYLLA_HOSTS not set")
@@ -46,6 +45,19 @@ func ConnectScylla() (*gocql.Session, error) {
 	fmt.Println("session created")
 	if err != nil {
 		return nil, fmt.Errorf("scylla connect error: %w", err)
+	}
+	// insert query
+	roomID := "room2"
+	userID := "user2"
+	content := "hello wansing"
+
+	err = session.Query(`
+		INSERT INTO messages (room_id, message_id, user_id, content, created_at)
+		VALUES (?, now(), ?, ?, toTimestamp(now()))
+	`, roomID, userID, content).Exec()
+
+	if err != nil {
+		log.Fatal("insert error:", err)
 	}
 
 	fmt.Println("✅ Connected to ScyllaDB")
