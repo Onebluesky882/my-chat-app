@@ -46,14 +46,12 @@ func main() {
 	fmt.Println("✅ message sent")
 
 	// test redis
-	err = rdb.Set(ctx, "test:key", "hello-redis", 0).Err()
+	msgs, err := chatSvc.GetMessages(ctx, "room-1")
 	if err != nil {
 		log.Fatal(err)
 	}
-	val, err := rdb.Get(ctx, "test:key").Result()
-	if err != nil {
-		log.Fatal(err)
+	for _, m := range msgs {
+		fmt.Println(m)
 	}
-	fmt.Println("Redis value:", val)
 	fmt.Println("Application started 🚀")
 }

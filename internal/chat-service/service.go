@@ -13,13 +13,6 @@ type Service struct {
 	redis  *redis.Client
 }
 
-type Message struct {
-	RoomID    string     `json:"room_id"  `
-	MessageID gocql.UUID `json:"message_id"  `
-	SenderID  string     `json:"sender_id"  `
-	Content   string     `json:"content" `
-}
-
 func New(s *gocql.Session, r *redis.Client) *Service {
 	return &Service{s, r}
 }
@@ -59,4 +52,63 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 	}
 
 	return nil
+}
+
+func (s *Service) GetRecentMessage(ctx context.Context, roomID string) ([]Message, error) {
+	key := "chat:" + roomID
+
+	data, err := s.redis.LRange(ctx, key, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var messages []Message
+
+	for _, item := range data {
+		var msg Message
+		if err := json.Unmarshal([]byte(item), &msg); err != nil {
+			continue
+		}
+		messages = append(messages, msg)
+	}
+
+	return messages, nil
+}
+
+// Fallback ไป Scylla
+func (s *Service) GetMessagesFromDB(roomID string, limit int) ([]Message, error) {
+	iter := s.scylla.Query(
+		`
+		SELECT room_id , message_id , sender_id , content FROM messages WHERE room_id = ? LIMIT ?
+		`, roomID, limit,
+	).Iter()
+
+	var messages []Message
+	var m Message
+
+	for iter.Scan(&m.RoomID, &m.MessageID, &m.SenderID, &m.Content) {
+		messages = append(messages, m)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func (s *Service) GetMessages(ctx context.Context, roomID string) ([]Message, error) {
+	// 1. try Redis
+	msgs, err := s.GetRecentMessage(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(msgs) > 0 {
+		return msgs, nil
+	}
+	// 2. fallback Scylla
+	msgs, err = s.GetMessagesFromDB(roomID, 50)
+	if err != nil {
+		return nil, err
+	}
+	return msgs, nil
 }
