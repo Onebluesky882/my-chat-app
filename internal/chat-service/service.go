@@ -3,7 +3,6 @@ package chat
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/gocql/gocql"
 	"github.com/redis/go-redis/v9"
@@ -38,7 +37,6 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 		msg.SenderID,
 		msg.Content,
 	).Exec()
-	fmt.Println("UUID:", msg.MessageID)
 	if err != nil {
 		return err
 	}

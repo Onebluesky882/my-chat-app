@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/Onebluesky882/my-chat-app/internal/cache"
 	"github.com/Onebluesky882/my-chat-app/internal/chat-service"
@@ -45,7 +44,16 @@ func main() {
 		log.Fatalf("send message error %v", err)
 	}
 	fmt.Println("✅ message sent")
-	time.Sleep(1 * time.Second)
+
 	// test redis
+	err = rdb.Set(ctx, "test:key", "hello-redis", 0).Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+	val, err := rdb.Get(ctx, "test:key").Result()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Redis value:", val)
 	fmt.Println("Application started 🚀")
 }
