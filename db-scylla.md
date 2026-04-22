@@ -28,12 +28,11 @@ WITH replication = { 'class': 'SimpleStrategy', 'replication_factor': 3};
 
 ```sql
 CREATE TABLE messages (
-room_id text,
-message_id timeuuid,
-user_id text,
-content text,
-created_at timestamp,
-PRIMARY KEY (room_id, message_id  )
+  room_id text,
+  message_id timeuuid,
+  sender_id text,
+  content text,
+  PRIMARY KEY (room_id, message_id)
 ) WITH CLUSTERING ORDER BY (message_id DESC);
 ```
 
