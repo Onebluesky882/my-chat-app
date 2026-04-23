@@ -42,7 +42,11 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 	}
 
 	// 2. cache to Redis
-	data, _ := json.Marshal(msg)
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
 	key := "chat:" + msg.RoomID
 	s.redis.LPush(ctx, key, data)
 	s.redis.LTrim(ctx, key, 0, 99)
@@ -58,28 +62,43 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 		if userID == msg.SenderID {
 			continue
 		}
-		unreadKey := "unread" + userID + ":" + msg.RoomID
-		s.redis.Incr(ctx, unreadKey)
+		unreadKey := "unread:" + userID + ":" + msg.RoomID
+		if err := s.redis.Incr(ctx, unreadKey).Err(); err != nil {
+			return err
+		}
+
+		fmt.Println("increase unread for:", userID)
 	}
 
 	return nil
 }
 
 // get Messages
-func (s *Service) GetMessages(ctx context.Context, roomID string) ([]Message, error) {
-	// 1. try Redis
+func (s *Service) GetMessages(ctx context.Context, roomID string, limit int) ([]Message, error) {
+	// 1. try Redis (don't fail if Redis error)
+
 	msgs, err := s.GetRecentMessage(ctx, roomID)
+	if err == nil && len(msgs) > 0 {
+		if len(msgs) > limit {
+			msgs = msgs[:limit]
+		}
+		return msgs, nil
+	}
+	// 2. fallback Scylla
+	msgs, err = s.GetMessagesFromDB(roomID, limit)
 	if err != nil {
 		return nil, err
 	}
 
+	// 3. cache back to Redis
+
 	if len(msgs) > 0 {
-		return msgs, nil
-	}
-	// 2. fallback Scylla
-	msgs, err = s.GetMessagesFromDB(roomID, 50)
-	if err != nil {
-		return nil, err
+		key := "chat:" + roomID
+		for i := len(msgs) - 1; i >= 0; i-- {
+			data, _ := json.Marshal(msgs[i])
+			s.redis.LPush(ctx, key, data)
+		}
+		s.redis.LTrim(ctx, key, 0, 99)
 	}
 	return msgs, nil
 }

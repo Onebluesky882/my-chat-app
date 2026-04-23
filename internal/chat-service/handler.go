@@ -1,8 +1,53 @@
 package chat
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"strconv"
 
-func SendMessage(chatSvc *Service) fiber.Handler {
+	"github.com/Onebluesky882/my-chat-app/internal/room-service"
+	"github.com/gofiber/fiber/v3"
+)
+
+func handleGetMessage(chatSvc *Service, roomSvc *room.Service) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		limitStr := c.Query("limit", "50")
+		// todo change to jwt userId
+		userID := c.Query("user_id")
+		roomID := c.Query("room_id")
+		if userID == "" || roomID == "" {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "user_id and room_id required",
+			})
+		}
+		ok, err := roomSvc.IsMember(roomID, userID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if !ok {
+			return c.Status(403).JSON(fiber.Map{
+				"error": "you are not in this room",
+			})
+		}
+		limit, err := strconv.Atoi(limitStr)
+
+		if err != nil {
+			limit = 50
+		}
+
+		msgs, err := chatSvc.GetMessages(c.Context(), roomID, limit)
+		if err != nil {
+
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.JSON(msgs)
+	}
+}
+
+func handleSendMessage(chatSvc *Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var req SendRequest
 
@@ -36,7 +81,7 @@ func SendMessage(chatSvc *Service) fiber.Handler {
 		})
 	}
 }
-func GetUnread(chatSvc *Service) fiber.Handler {
+func handleGetUnread(chatSvc *Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		userID := c.Query("user_id")
 		roomID := c.Query("room_id")
@@ -61,7 +106,7 @@ func GetUnread(chatSvc *Service) fiber.Handler {
 	}
 }
 
-func MarkAsRead(chatSvc *Service) fiber.Handler {
+func handleMarkAsRead(chatSvc *Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		userID := c.Query("user_id")
 		roomID := c.Query("room_id")

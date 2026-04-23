@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 
@@ -25,31 +24,18 @@ func main() {
 	}
 	defer scyllaSession.Close()
 
-	err = db.CreateTables(scyllaSession)
-	if err != nil {
-		log.Fatal("create table error:", err)
-	}
-
 	// redis
 	rdb, err := cache.NewRedis(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// instant
 	roomSvc := room.New(scyllaSession)
 	chatSvc := chat.New(scyllaSession, rdb, roomSvc)
 
-	ctx := context.Background()
-
-	chat.ChatRouter(app, chatSvc)
-
-	// test redis
-	msgs, err := chatSvc.GetMessages(ctx, "room-1")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, m := range msgs {
-		fmt.Println(m)
-	}
+	// routers
+	chat.ChatRouter(app, chatSvc, roomSvc)
+	room.RoomRouter(app, roomSvc)
 	// run server
 	log.Println("Server running on :3000 🚀")
 	log.Fatal(app.Listen(":3000"))

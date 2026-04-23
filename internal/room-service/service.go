@@ -29,3 +29,17 @@ func (s *Service) GetParticipants(roomID string) ([]string, error) {
 
 	return users, iter.Close()
 }
+
+func (s *Service) JoinRoom(roomID string, userID string) error {
+	return s.scylla.Query(
+		`INSERT INTO room_members (room_id, user_id) VALUES(? ,? )`,
+		roomID, userID,
+	).Exec()
+}
+
+func (s *Service) LeaveRoom(roomID, userID string) error {
+	return s.scylla.Query(
+		`DELETE FROM room_members WHERE room_id = ? AND user_id = ?`,
+		roomID, userID,
+	).Exec()
+}

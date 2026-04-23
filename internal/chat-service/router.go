@@ -1,10 +1,14 @@
 package chat
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"github.com/Onebluesky882/my-chat-app/internal/room-service"
+	"github.com/gofiber/fiber/v3"
+)
 
-func ChatRouter(app *fiber.App, chatSvc *Service) {
+func ChatRouter(app *fiber.App, chatSvc *Service, roomSvc *room.Service) {
 	chatGroup := app.Group("/chat")
-	chatGroup.Post("/send", SendMessage(chatSvc))
-	chatGroup.Get("/unread", GetUnread(chatSvc))
-	chatGroup.Post("/read", MarkAsRead(chatSvc))
+	chatGroup.Post("/send", handleSendMessage(chatSvc))
+	chatGroup.Get("/unread", handleGetUnread(chatSvc))
+	chatGroup.Post("/read", handleMarkAsRead(chatSvc))
+	chatGroup.Get("/message", handleGetMessage(chatSvc, roomSvc))
 }
