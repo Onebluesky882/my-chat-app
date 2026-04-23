@@ -1,25 +1,16 @@
 package db
 
 import (
-	"github.com/uptrace/bun"
+	"github.com/gocql/gocql"
 )
 
-var (
-	DBCon *bun.DB
-)
+func CreateTables(session *gocql.Session) error {
+	query := `
+	CREATE TABLE IF NOT EXISTS room_members (
+		room_id text,
+		user_id text,
+		PRIMARY KEY (room_id, user_id)
+	);`
 
-func InitDb() {
-	// 	newDB := `USE chat;
-
-	// CREATE TABLE messages (
-	//   room_id text,
-	//   message_id timeuuid,
-	//   user_id text,
-	//   content text,
-	//   PRIMARY KEY (room_id, message_id)
-	// ) WITH CLUSTERING ORDER BY (message_id DESC);`
-	// fmt.Println(newDB)
+	return session.Query(query).Exec()
 }
-
-
-

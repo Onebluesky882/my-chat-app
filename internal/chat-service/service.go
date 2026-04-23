@@ -3,7 +3,9 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
+	"github.com/Onebluesky882/my-chat-app/internal/room-service"
 	"github.com/gocql/gocql"
 	"github.com/redis/go-redis/v9"
 )
@@ -11,10 +13,15 @@ import (
 type Service struct {
 	scylla *gocql.Session
 	redis  *redis.Client
+	room   *room.Service
 }
 
-func New(s *gocql.Session, r *redis.Client) *Service {
-	return &Service{s, r}
+func New(s *gocql.Session, r *redis.Client, roomSvc *room.Service) *Service {
+	return &Service{
+		scylla: s,
+		redis:  r,
+		room:   roomSvc,
+	}
 }
 
 func (s *Service) Send(ctx context.Context, msg Message) error {
@@ -35,66 +42,30 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 	}
 
 	// 2. cache to Redis
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
+	data, _ := json.Marshal(msg)
 	key := "chat:" + msg.RoomID
+	s.redis.LPush(ctx, key, data)
+	s.redis.LTrim(ctx, key, 0, 99)
 
-	err = s.redis.LPush(ctx, key, data).Err()
+	// ดึง participants จาก db
+	participants, err := s.room.GetParticipants(msg.RoomID)
 	if err != nil {
 		return err
 	}
-
-	err = s.redis.LTrim(ctx, key, 0, 99).Err()
-	if err != nil {
-		return err
+	fmt.Println("participants:", participants)
+	// 4. unread logic
+	for _, userID := range participants {
+		if userID == msg.SenderID {
+			continue
+		}
+		unreadKey := "unread" + userID + ":" + msg.RoomID
+		s.redis.Incr(ctx, unreadKey)
 	}
 
 	return nil
 }
 
-func (s *Service) GetRecentMessage(ctx context.Context, roomID string) ([]Message, error) {
-	key := "chat:" + roomID
-
-	data, err := s.redis.LRange(ctx, key, 0, -1).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	var messages []Message
-
-	for _, item := range data {
-		var msg Message
-		if err := json.Unmarshal([]byte(item), &msg); err != nil {
-			continue
-		}
-		messages = append(messages, msg)
-	}
-
-	return messages, nil
-}
-
-// Fallback ไป Scylla
-func (s *Service) GetMessagesFromDB(roomID string, limit int) ([]Message, error) {
-	iter := s.scylla.Query(
-		`
-		SELECT room_id , message_id , sender_id , content FROM messages WHERE room_id = ? LIMIT ?
-		`, roomID, limit,
-	).Iter()
-
-	var messages []Message
-	var m Message
-
-	for iter.Scan(&m.RoomID, &m.MessageID, &m.SenderID, &m.Content) {
-		messages = append(messages, m)
-	}
-	if err := iter.Close(); err != nil {
-		return nil, err
-	}
-	return messages, nil
-}
-
+// get Messages
 func (s *Service) GetMessages(ctx context.Context, roomID string) ([]Message, error) {
 	// 1. try Redis
 	msgs, err := s.GetRecentMessage(ctx, roomID)

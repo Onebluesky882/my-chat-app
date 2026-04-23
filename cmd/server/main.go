@@ -9,10 +9,12 @@ import (
 	"github.com/Onebluesky882/my-chat-app/internal/chat-service"
 	"github.com/Onebluesky882/my-chat-app/internal/config"
 	"github.com/Onebluesky882/my-chat-app/internal/db"
+	"github.com/Onebluesky882/my-chat-app/internal/room-service"
+	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
-
+	app := fiber.New()
 	cfg := config.LoadConfig()
 
 	// connect db scyllaDB
@@ -23,27 +25,22 @@ func main() {
 	}
 	defer scyllaSession.Close()
 
+	err = db.CreateTables(scyllaSession)
+	if err != nil {
+		log.Fatal("create table error:", err)
+	}
+
 	// redis
 	rdb, err := cache.NewRedis(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	chatSvc := chat.New(scyllaSession, rdb)
+	roomSvc := room.New(scyllaSession)
+	chatSvc := chat.New(scyllaSession, rdb, roomSvc)
 
 	ctx := context.Background()
 
-	msg := chat.Message{
-		RoomID:   "room-3",
-		SenderID: "user-3",
-		Content:  "hello scylla + redis",
-	}
-
-	err = chatSvc.Send(ctx, msg)
-	if err != nil {
-		log.Fatalf("send message error %v", err)
-	}
-	fmt.Println("✅ message sent")
+	chat.ChatRouter(app, chatSvc)
 
 	// test redis
 	msgs, err := chatSvc.GetMessages(ctx, "room-1")
@@ -53,5 +50,7 @@ func main() {
 	for _, m := range msgs {
 		fmt.Println(m)
 	}
-	fmt.Println("Application started 🚀")
+	// run server
+	log.Println("Server running on :3000 🚀")
+	log.Fatal(app.Listen(":3000"))
 }

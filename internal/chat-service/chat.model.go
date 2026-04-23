@@ -8,3 +8,10 @@ type Message struct {
 	SenderID  string     `json:"sender_id"  `
 	Content   string     `json:"content" `
 }
+
+type SendRequest struct {
+	RoomID       string   `json:"room_id"`
+	SenderID     string   `json:"sender_id"`
+	Content      string   `json:"content"`
+	Participants []string `json:"participants"`
+}
