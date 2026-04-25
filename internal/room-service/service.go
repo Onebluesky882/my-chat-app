@@ -38,8 +38,39 @@ func (s *Service) JoinRoom(roomID string, userID string) error {
 }
 
 func (s *Service) LeaveRoom(roomID, userID string) error {
-	return s.scylla.Query(
+	// remove user first
+	if err := s.scylla.Query(
 		`DELETE FROM room_members WHERE room_id = ? AND user_id = ?`,
 		roomID, userID,
-	).Exec()
+	).Exec(); err != nil {
+		return err
+	}
+
+	var memberCount int
+	if err := s.scylla.Query(
+		`SELECT COUNT(*) FROM room_members WHERE room_id = ?`,
+		roomID,
+	).Scan(&memberCount); err != nil {
+		return err
+	}
+
+	if memberCount <= 1 {
+		if err := s.scylla.Query(
+			`DELETE FROM room_members WHERE room_id = ?`,
+			roomID,
+		).Exec(); err != nil {
+			return err
+		}
+
+		// ignore if rooms table doesn't exist
+		if err := s.scylla.Query(
+			`DELETE FROM rooms WHERE room_id = ?`,
+			roomID,
+		).Exec(); err != nil {
+			// log only, don't fail
+			return nil
+		}
+	}
+
+	return nil
 }

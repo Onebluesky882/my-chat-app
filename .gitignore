@@ -1,0 +1,23 @@
+# binaries
+bin/
+*.exe
+*.out
+
+# dependencies
+vendor/
+
+# env
+.env
+
+# logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+build-errors.log
+main
