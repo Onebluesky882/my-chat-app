@@ -14,6 +14,11 @@ type Service struct {
 	scylla *gocql.Session
 	redis  *redis.Client
 	room   *room.Service
+	ws     Broadcaster
+}
+
+type Broadcaster interface {
+	Broadcast(roomID string, payload []byte)
 }
 
 func New(s *gocql.Session, r *redis.Client, roomSvc *room.Service) *Service {
@@ -22,6 +27,10 @@ func New(s *gocql.Session, r *redis.Client, roomSvc *room.Service) *Service {
 		redis:  r,
 		room:   roomSvc,
 	}
+
+}
+func (s *Service) SetBroadcaster(b Broadcaster) {
+	s.ws = b
 }
 
 func (s *Service) Send(ctx context.Context, msg Message) error {
@@ -43,6 +52,14 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 
 	// 2. cache to Redis
 	data, err := json.Marshal(msg)
+	if s.ws != nil {
+
+		s.ws.Broadcast(
+			msg.RoomID,
+			data,
+		)
+
+	}
 	if err != nil {
 		return err
 	}

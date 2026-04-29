@@ -41,6 +41,9 @@ func main() {
 	chat.ChatRouter(app, chatSvc, roomSvc)
 	room.RoomRouter(app, roomSvc)
 
+	// set broadcaster
+	chatSvc.SetBroadcaster(wsSvc)
+
 	// run server
 	log.Println("Server running on :3000 🚀")
 	log.Fatal(app.Listen(":3000"))

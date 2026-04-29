@@ -75,14 +75,10 @@ func (s *Service) readLoop(
 
 	for {
 
-		_, msg, err := conn.ReadMessage()
+		_, _, err := conn.ReadMessage()
 		if err != nil {
 			return err
 		}
 
-		log.Println(
-			"incoming:",
-			string(msg),
-		)
 	}
 }
