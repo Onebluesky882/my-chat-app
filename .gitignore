@@ -6,6 +6,8 @@ bin/
 # dependencies
 vendor/
 
+build-errors.log
+main
 # env
 .env
 
