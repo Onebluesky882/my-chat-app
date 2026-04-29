@@ -14,6 +14,21 @@ type Service struct {
 	scylla *gocql.Session
 	redis  *redis.Client
 	room   *room.Service
+	ws     Broadcaster
+}
+
+type Broadcaster interface {
+	Broadcast(roomID string, payload []byte)
+}
+type Event struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
+}
+
+type UnreadEvent struct {
+	UserID string `json:"user_id"`
+	RoomID string `json:"room_id"`
+	Count  int64  `json:"count"`
 }
 
 func New(s *gocql.Session, r *redis.Client, roomSvc *room.Service) *Service {
@@ -22,6 +37,10 @@ func New(s *gocql.Session, r *redis.Client, roomSvc *room.Service) *Service {
 		redis:  r,
 		room:   roomSvc,
 	}
+
+}
+func (s *Service) SetBroadcaster(b Broadcaster) {
+	s.ws = b
 }
 
 func (s *Service) Send(ctx context.Context, msg Message) error {
@@ -41,33 +60,51 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 		return err
 	}
 
-	// 2. cache to Redis
 	data, err := json.Marshal(msg)
+
 	if err != nil {
 		return err
 	}
-
+	// 2. cache to Redis
 	key := "chat:" + msg.RoomID
 	s.redis.LPush(ctx, key, data)
 	s.redis.LTrim(ctx, key, 0, 99)
+
+	// DB done → broadcast message
+	if s.ws != nil {
+		s.ws.Broadcast(msg.RoomID, data)
+	}
 
 	// ดึง participants จาก db
 	participants, err := s.room.GetParticipants(msg.RoomID)
 	if err != nil {
 		return err
 	}
-	fmt.Println("participants:", participants)
+
 	// 4. unread logic
 	for _, userID := range participants {
 		if userID == msg.SenderID {
 			continue
 		}
 		unreadKey := "unread:" + userID + ":" + msg.RoomID
-		if err := s.redis.Incr(ctx, unreadKey).Err(); err != nil {
+		count, err := s.redis.Incr(ctx, unreadKey).Result()
+		if err != nil {
 			return err
 		}
 
-		fmt.Println("increase unread for:", userID)
+		fmt.Println("increase unread for:", userID, count)
+
+		// 5. broadcast unread event
+		event := Event{
+			Type: "unread",
+			Data: UnreadEvent{
+				UserID: userID,
+				RoomID: msg.RoomID,
+				Count:  count,
+			},
+		}
+		eventData, _ := json.Marshal(event)
+		s.ws.Broadcast(msg.RoomID, eventData)
 	}
 
 	return nil

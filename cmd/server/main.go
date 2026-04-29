@@ -9,6 +9,7 @@ import (
 	"github.com/Onebluesky882/my-chat-app/internal/config"
 	"github.com/Onebluesky882/my-chat-app/internal/db"
 	"github.com/Onebluesky882/my-chat-app/internal/room-service"
+	"github.com/Onebluesky882/my-chat-app/internal/websocket-service"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -33,9 +34,16 @@ func main() {
 	roomSvc := room.New(scyllaSession)
 	chatSvc := chat.New(scyllaSession, rdb, roomSvc)
 
+	wsSvc := websocket.New(chatSvc, roomSvc)
+
 	// routers
+	websocket.WSRouter(app, wsSvc)
 	chat.ChatRouter(app, chatSvc, roomSvc)
 	room.RoomRouter(app, roomSvc)
+
+	// set broadcaster
+	chatSvc.SetBroadcaster(wsSvc)
+
 	// run server
 	log.Println("Server running on :3000 🚀")
 	log.Fatal(app.Listen(":3000"))

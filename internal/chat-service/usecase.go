@@ -128,4 +128,3 @@ func (s *Service) MarkAsRead(ctx context.Context, userID, roomID string) error {
 	key := "unread:" + userID + ":" + roomID
 	return s.redis.Del(ctx, key).Err()
 }
-
