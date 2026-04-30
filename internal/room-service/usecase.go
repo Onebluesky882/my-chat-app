@@ -1,13 +1,26 @@
 package room
 
-import "github.com/gocql/gocql"
+import (
+	"errors"
+
+	"github.com/gocql/gocql"
+)
 
 func (s *Service) IsMember(roomID, userID string) (bool, error) {
-	var id string
+	rID, err := gocql.ParseUUID(roomID)
+	if err != nil {
+		return false, errors.New("invalid room_id")
+	}
+	uID, err := gocql.ParseUUID(userID)
+	if err != nil {
+		return false, errors.New("invalid user_id")
+	}
 
-	err := s.scylla.Query(
-		`SELECT user_id FROM room_members WHERE room_id = ? AND user_id = ? LIMIT 1`,
-		roomID, userID,
+	var id gocql.UUID
+
+	err = s.scylla.Query(
+		`SELECT user_id FROM room_members WHERE room_id = ? AND user_id = ?`,
+		rID, uID,
 	).Scan(&id)
 
 	if err == gocql.ErrNotFound {
