@@ -8,8 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func (s *Service) GetRecentMessage(ctx context.Context, roomID string) ([]Message, error) {
-	key := "chat:" + roomID
+func (s *Service) GetRecentMessage(ctx context.Context, roomID gocql.UUID) ([]Message, error) {
+	key := "chat:" + roomID.String()
 
 	data, err := s.redis.LRange(ctx, key, 0, -1).Result()
 	if err != nil {
@@ -30,7 +30,7 @@ func (s *Service) GetRecentMessage(ctx context.Context, roomID string) ([]Messag
 }
 
 // Fallback ไป Scylla
-func (s *Service) GetMessagesFromDB(roomID string, limit int) ([]Message, error) {
+func (s *Service) GetMessagesFromDB(roomID gocql.UUID, limit int) ([]Message, error) {
 	iter := s.scylla.Query(
 		`
 		SELECT room_id , message_id , sender_id , content FROM messages WHERE room_id = ? LIMIT ?
@@ -50,7 +50,7 @@ func (s *Service) GetMessagesFromDB(roomID string, limit int) ([]Message, error)
 }
 
 // Pagination
-func (s *Service) GetMessagesWithCursor(roomID string, cursor gocql.UUID, limit int) ([]Message, error) {
+func (s *Service) GetMessagesWithCursor(roomID gocql.UUID, cursor gocql.UUID, limit int) ([]Message, error) {
 	var iter *gocql.Iter
 	if cursor == (gocql.UUID{}) {
 		// first page
@@ -79,7 +79,7 @@ func (s *Service) GetMessagesWithCursor(roomID string, cursor gocql.UUID, limit 
 	return messages, nil
 }
 
-func (s *Service) GetMessagesWithCache(ctx context.Context, roomID string, cursor gocql.UUID, limit int) ([]Message, error) {
+func (s *Service) GetMessagesWithCache(ctx context.Context, roomID gocql.UUID, cursor gocql.UUID, limit int) ([]Message, error) {
 
 	//1. ถ้าเป็นหน้าแรก → ใช้ Redis
 	if cursor == (gocql.UUID{}) {
@@ -101,7 +101,7 @@ func (s *Service) GetMessagesWithCache(ctx context.Context, roomID string, curso
 	}
 
 	if cursor == (gocql.UUID{}) {
-		key := "chat:" + roomID
+		key := "chat:" + roomID.String()
 		for i := len(msgs) - 1; i >= 0; i-- {
 			data, _ := json.Marshal(msgs[i])
 			s.redis.LPush(ctx, key, data)
@@ -111,8 +111,8 @@ func (s *Service) GetMessagesWithCache(ctx context.Context, roomID string, curso
 	return msgs, nil
 }
 
-func (s *Service) GetUnread(ctx context.Context, userID, roomID string) (int, error) {
-	key := "unread:" + userID + ":" + roomID
+func (s *Service) GetUnread(ctx context.Context, userID, roomID gocql.UUID) (int, error) {
+	key := "unread:" + userID.String() + ":" + roomID.String()
 
 	val, err := s.redis.Get(ctx, key).Int()
 	if err == redis.Nil {

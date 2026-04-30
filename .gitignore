@@ -6,8 +6,20 @@ bin/
 # dependencies
 vendor/
 
+# logs
+
 build-errors.log
+
+# temp folder
+
+tmp/
+
+# binary
+
 main
+
+
+
 # env
 .env
 

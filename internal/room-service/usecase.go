@@ -1,12 +1,15 @@
 package room
 
-import "github.com/gocql/gocql"
+import (
+	"github.com/gocql/gocql"
+)
 
-func (s *Service) IsMember(roomID, userID string) (bool, error) {
-	var id string
+func (s *Service) IsMember(roomID, userID gocql.UUID) (bool, error) {
+
+	var id gocql.UUID
 
 	err := s.scylla.Query(
-		`SELECT user_id FROM room_members WHERE room_id = ? AND user_id = ? LIMIT 1`,
+		`SELECT user_id FROM room_members WHERE room_id = ? AND user_id = ?`,
 		roomID, userID,
 	).Scan(&id)
 

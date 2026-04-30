@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/Onebluesky882/my-chat-app/internal/room-service"
+	"github.com/gocql/gocql"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -13,12 +14,22 @@ func handleGetMessage(chatSvc *Service, roomSvc *room.Service) fiber.Handler {
 		// todo change to jwt userId
 		userID := c.Query("user_id")
 		roomID := c.Query("room_id")
-		if userID == "" || roomID == "" {
+
+		rID, err := gocql.ParseUUID(roomID)
+		if err != nil {
 			return c.Status(400).JSON(fiber.Map{
-				"error": "user_id and room_id required",
+				"error": "invalid room_id",
 			})
 		}
-		ok, err := roomSvc.IsMember(roomID, userID)
+
+		uID, err := gocql.ParseUUID(userID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid user_id",
+			})
+		}
+
+		ok, err := roomSvc.IsMember(rID, uID)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
@@ -36,7 +47,7 @@ func handleGetMessage(chatSvc *Service, roomSvc *room.Service) fiber.Handler {
 			limit = 50
 		}
 
-		msgs, err := chatSvc.GetMessages(c.Context(), roomID, limit)
+		msgs, err := chatSvc.GetMessages(c.Context(), rID, limit)
 		if err != nil {
 
 			return c.Status(500).JSON(fiber.Map{
@@ -55,12 +66,6 @@ func handleSendMessage(chatSvc *Service) fiber.Handler {
 		if err := c.Bind().Body(&req); err != nil {
 			return c.Status(400).JSON(fiber.Map{
 				"error": "invalid request",
-			})
-		}
-		// validate เบื้องต้น
-		if req.RoomID == "" || req.SenderID == "" || req.Content == "" {
-			return c.Status(400).JSON(fiber.Map{
-				"error": "missing fields",
 			})
 		}
 
@@ -86,13 +91,21 @@ func handleGetUnread(chatSvc *Service) fiber.Handler {
 		userID := c.Query("user_id")
 		roomID := c.Query("room_id")
 
-		if userID == "" || roomID == "" {
+		rID, err := gocql.ParseUUID(roomID)
+		if err != nil {
 			return c.Status(400).JSON(fiber.Map{
-				"error": "user_id and room_id are required",
+				"error": "invalid room_id",
 			})
 		}
 
-		count, err := chatSvc.GetUnread(c.Context(), userID, roomID)
+		uID, err := gocql.ParseUUID(userID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid user_id",
+			})
+		}
+
+		count, err := chatSvc.GetUnread(c.Context(), uID, rID)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
