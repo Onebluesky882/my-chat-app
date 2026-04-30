@@ -33,15 +33,13 @@ func main() {
 	// instant
 	roomSvc := room.New(scyllaSession)
 	chatSvc := chat.New(scyllaSession, rdb, roomSvc)
-
-	wsSvc := websocket.New(chatSvc, roomSvc)
-
 	// routers
-	websocket.WSRouter(app, wsSvc)
 	chat.ChatRouter(app, chatSvc, roomSvc)
 	room.RoomRouter(app, roomSvc)
 
-	// set broadcaster
+	// websocket
+	wsSvc := websocket.New(chatSvc, roomSvc)
+	websocket.WSRouter(app, wsSvc, chatSvc)
 	chatSvc.SetBroadcaster(wsSvc)
 
 	// run server
