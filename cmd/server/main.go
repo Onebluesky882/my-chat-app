@@ -41,6 +41,7 @@ func main() {
 	wsSvc := websocket.New(chatSvc, roomSvc)
 	websocket.WSRouter(app, wsSvc, chatSvc)
 	chatSvc.SetBroadcaster(wsSvc)
+	chatSvc.SetUserBroadcaster(wsSvc)
 
 	// run server
 	log.Println("Server running on :3000 🚀")

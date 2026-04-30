@@ -9,22 +9,23 @@ import (
 	"github.com/Onebluesky882/my-chat-app/internal/chat-service"
 	"github.com/Onebluesky882/my-chat-app/internal/room-service"
 	"github.com/fasthttp/websocket"
+	"github.com/gocql/gocql"
 )
 
 type Service struct {
 	chatSvc   *chat.Service
 	roomSvc   *room.Service
 	mu        sync.RWMutex
-	userConns map[string]*client
-	rooms     map[string]map[*client]bool
+	userConns map[gocql.UUID]*client
+	rooms     map[gocql.UUID]map[*client]bool
 }
 
 func New(chatSvc *chat.Service, roomSvc *room.Service) *Service {
 	return &Service{
 		chatSvc:   chatSvc,
 		roomSvc:   roomSvc,
-		userConns: make(map[string]*client),
-		rooms:     make(map[string]map[*client]bool),
+		userConns: make(map[gocql.UUID]*client),
+		rooms:     make(map[gocql.UUID]map[*client]bool),
 	}
 }
 
@@ -54,7 +55,8 @@ func (s *Service) safeWrite(c *client, payload []byte) error {
 	}
 }
 
-func (s *Service) Connect(conn *websocket.Conn, roomID, userID string) error {
+func (s *Service) Connect(conn *websocket.Conn, roomID, userID gocql.UUID) error {
+
 	ok, err := s.roomSvc.IsMember(roomID, userID)
 	if err != nil {
 		return err
@@ -83,7 +85,7 @@ func (s *Service) Connect(conn *websocket.Conn, roomID, userID string) error {
 	return s.readLoop(roomID, userID, c)
 }
 
-func (s *Service) SendToUser(userID string, payload []byte) {
+func (s *Service) SendToUser(userID gocql.UUID, payload []byte) {
 	s.mu.RLock()
 	c, ok := s.userConns[userID]
 	s.mu.RUnlock()
@@ -95,7 +97,7 @@ func (s *Service) SendToUser(userID string, payload []byte) {
 	}
 }
 
-func (s *Service) readLoop(roomID, userID string, c *client) error {
+func (s *Service) readLoop(roomID, userID gocql.UUID, c *client) error {
 	for {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {

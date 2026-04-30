@@ -6,9 +6,10 @@ import (
 	"log"
 
 	"github.com/Onebluesky882/my-chat-app/internal/chat-service"
+	"github.com/gocql/gocql"
 )
 
-func (s *Service) join(roomID string, c *client) {
+func (s *Service) join(roomID gocql.UUID, c *client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.rooms[roomID]; !ok {
@@ -18,7 +19,7 @@ func (s *Service) join(roomID string, c *client) {
 	log.Println("JOIN ROOM:", roomID, "clients:", len(s.rooms[roomID]))
 }
 
-func (s *Service) leave(roomID string, c *client) {
+func (s *Service) leave(roomID gocql.UUID, c *client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if room, ok := s.rooms[roomID]; ok {
@@ -29,7 +30,7 @@ func (s *Service) leave(roomID string, c *client) {
 	}
 }
 
-func (s *Service) Broadcast(roomID string, payload []byte) {
+func (s *Service) Broadcast(roomID gocql.UUID, payload []byte) {
 	s.mu.RLock()
 	clients := make([]*client, 0, len(s.rooms[roomID]))
 	for c := range s.rooms[roomID] {
@@ -53,8 +54,19 @@ func (s *Service) Broadcast(roomID string, payload []byte) {
 		s.mu.Unlock()
 	}
 }
+func (s *Service) BroadcastUser(userID gocql.UUID, payload []byte) {
+	s.mu.RLock()
+	c, ok := s.userConns[userID]
+	s.mu.RUnlock()
+	if !ok {
+		return // user offline — ไม่เป็นไร
+	}
+	if err := s.safeWrite(c, payload); err != nil {
+		log.Println("BroadcastUser error:", err)
+	}
+}
 
-func (s *Service) handleMessage(roomID, userID string, m WSMessage) {
+func (s *Service) handleMessage(roomID, userID gocql.UUID, m WSMessage) {
 	if m.Content == "" {
 		return
 	}
@@ -74,12 +86,12 @@ func (s *Service) handleMessage(roomID, userID string, m WSMessage) {
 	s.Broadcast(roomID, payload)
 }
 
-func (s *Service) handleTyping(roomID, userID string) {
+func (s *Service) handleTyping(roomID, userID gocql.UUID) {
 	payload, _ := json.Marshal(map[string]any{
 		"type": "typing",
 		"data": map[string]string{
-			"user_id": userID,
-			"room_id": roomID,
+			"user_id": userID.String(),
+			"room_id": roomID.String(),
 		},
 	})
 	s.Broadcast(roomID, payload)

@@ -5,10 +5,11 @@ import (
 
 	"github.com/Onebluesky882/my-chat-app/internal/chat-service"
 	"github.com/fasthttp/websocket"
+	"github.com/gocql/gocql"
 	"github.com/gofiber/fiber/v3"
 )
 
-func HandleWS(wsSvc *Service, roomID, userID string) func(*websocket.Conn) {
+func HandleWS(wsSvc *Service, roomID, userID gocql.UUID) func(*websocket.Conn) {
 	return func(conn *websocket.Conn) {
 		// ✅ ไม่ต้อง conn.Close() — Connect → close(c.send) → writePump ปิดเอง
 		wsSvc.Connect(conn, roomID, userID)
@@ -25,14 +26,25 @@ func HandleSendToUser(wsSvc *Service, chatSvc *chat.Service) fiber.Handler {
 		if err := c.Bind().Body(&req); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 		}
-		if req.UserID == "" || req.RoomID == "" {
-			return c.Status(400).JSON(fiber.Map{"error": "user_id and room_id required"})
+
+		rID, err := gocql.ParseUUID(req.RoomID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid room_id",
+			})
+		}
+
+		uID, err := gocql.ParseUUID(req.UserID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid user_id",
+			})
 		}
 
 		// ✅ บันทึก DB ก่อน
 		msg := chat.Message{
-			RoomID:   req.RoomID,
-			SenderID: req.UserID,
+			RoomID:   rID,
+			SenderID: uID,
 			Content:  req.Message,
 		}
 		if err := chatSvc.Send(c.Context(), msg); err != nil {
@@ -44,7 +56,7 @@ func HandleSendToUser(wsSvc *Service, chatSvc *chat.Service) fiber.Handler {
 			"type": "message",
 			"data": msg,
 		})
-		wsSvc.SendToUser(req.UserID, payload)
+		wsSvc.SendToUser(uID, payload)
 
 		return c.JSON(fiber.Map{"status": "sent"})
 	}
