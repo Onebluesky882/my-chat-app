@@ -156,8 +156,8 @@ func (s *Service) JoinRoom(roomID string, userID string) error {
 
 	// 3. insert member
 	return s.scylla.Query(`
-        INSERT INTO room_members (room_id, user_id, joined_at)
-        VALUES (?, ?, toTimestamp(now()))`,
+        INSERT INTO room_members (room_id, user_id, permission, joined_at)
+        VALUES (?, ?, 'member', toTimestamp(now()))`,
 		rID, uID,
 	).Exec()
 }

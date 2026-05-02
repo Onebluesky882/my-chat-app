@@ -130,7 +130,21 @@ func handleMarkAsRead(chatSvc *Service) fiber.Handler {
 			})
 		}
 
-		err := chatSvc.MarkAsRead(c.Context(), userID, roomID)
+		uID, err := gocql.ParseUUID(userID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid user_id",
+			})
+		}
+
+		rID, err := gocql.ParseUUID(roomID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid room_id",
+			})
+		}
+
+		err = chatSvc.MarkAsRead(c.Context(), uID, rID)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),

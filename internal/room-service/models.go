@@ -10,6 +10,7 @@ type Room struct {
 	ID        gocql.UUID `json:"id"`
 	Type      string     `json:"type"` // "direct" | "group"
 	CreatedAt time.Time  `json:"created_at"`
+	Name      *string    `json:"name"`
 }
 
 type RoomMember struct {

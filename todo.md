@@ -1,5 +1,13 @@
-⬜ Auth / JWT — ตรวจ token ก่อน connect
-⬜ CreateRoom API — สร้างห้องก่อนคุย
-⬜ GetMessages API — ดึงประวัติข้อความ
-⬜ Reset unread — เมื่อ user อ่านข้อความแล้ว
-⬜ room_last_message — แสดงใน room list
+## player active
+
+— เก็บใน Redis แทน (เร็วกว่า)
+presence data เปลี่ยนบ่อย เหมาะกับ Redis มากกว่า ScyllaDB:
+go// online
+s.redis.Set(ctx, "presence:"+userID, "online", 5\*time.Minute)
+
+// offline
+s.redis.Del(ctx, "presence:"+userID)
+
+// เช็ค
+val, err := s.redis.Get(ctx, "presence:"+userID).Result()
+isOnline := err == nil && val == "online"

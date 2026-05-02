@@ -124,7 +124,7 @@ func (s *Service) GetUnread(ctx context.Context, userID, roomID gocql.UUID) (int
 	return val, nil
 }
 
-func (s *Service) MarkAsRead(ctx context.Context, userID, roomID string) error {
-	key := "unread:" + userID + ":" + roomID
+func (s *Service) MarkAsRead(ctx context.Context, userID, roomID gocql.UUID) error {
+	key := "unread:" + userID.String() + ":" + roomID.String()
 	return s.redis.Del(ctx, key).Err()
 }
