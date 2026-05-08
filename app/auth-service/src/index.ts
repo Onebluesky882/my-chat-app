@@ -4,10 +4,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./db";
 import { schema } from "./db/schema";
-import { handleSignUpByPassword } from "./handle/handleSignUpByPassword";
-import { handleLoginByPassword } from "./handle/handleLoginByPassword";
 import authRouter from "./router/better-auth";
-
+import { expo } from "@better-auth/expo";
 const app = new Hono();
 app.use(
   "/api/*",
@@ -24,12 +22,15 @@ export const auth = betterAuth({
     provider: "pg",
     schema,
   }),
-  trustedOrigins: ["http://localhost:3000"],
+  trustedOrigins: ["localhost://3000", "chatapp://", "http://192.168.1.59"],
+  plugins: [expo()],
   emailAndPassword: {
     enabled: true,
   },
 });
-
+app.get("/", (c) => {
+  return c.text("hello");
+});
 app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.route("/api", authRouter);

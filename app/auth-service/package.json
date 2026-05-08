@@ -4,7 +4,12 @@
     "dev": "bun run --hot src/index.ts"
   },
   "dependencies": {
-    "hono": "^4.12.16"
+    "@better-auth/expo": "^1.6.9",
+    "add": "^2.0.6",
+    "better-auth": "^1.6.9",
+    "expo-network": "^55.0.13",
+    "hono": "^4.12.16",
+    "pnpm": "^11.0.8"
   },
   "devDependencies": {
     "@types/bun": "latest",
